@@ -5,7 +5,7 @@ Provides convenient methods for retrieving user data for support operators.
 import logging
 from typing import Dict, List, Any, Optional
 from datetime import datetime, timedelta
-from sqlalchemy import desc, and_, or_
+from sqlalchemy import desc, and_, or_, func
 
 from core.db import get_mainbot_session
 from models.mainbot import (
@@ -103,6 +103,19 @@ class MainbotService:
                     'total_bonuses': session.query(Bonus).filter_by(
                         userID=user.userID
                     ).count(),
+
+                    # NEW: Darwin Shares (Project #3)
+                    'darwin_shares': session.query(func.sum(Purchase.packQty)).filter(
+                        and_(
+                            Purchase.userID == user.userID,
+                            Purchase.projectID == 3
+                        )
+                    ).scalar() or 0,
+
+                    # NEW: Total investment amount across all projects
+                    'total_invest_amount': session.query(func.sum(Purchase.packPrice)).filter_by(
+                        userID=user.userID
+                    ).scalar() or 0,
                 }
 
                 # Get upline info if exists

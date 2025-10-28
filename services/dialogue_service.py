@@ -625,7 +625,11 @@ class DialogueService:
                     'total_payments': user_info.get('total_payments', 0) if user_info else 0,
                     'referral_count': user_info.get('referral_count', 0) if user_info else 0,
                     'upline_name': user_info.get('upline_name', 'Unknown') if user_info else 'Unknown',
-                    'legacy_status': user_info.get('legacy_status', '❌ Not migrated') if user_info else '❌ Not migrated'
+                    'legacy_status': user_info.get('legacy_status',
+                                                   '❌ Not migrated') if user_info else '❌ Not migrated',
+                    # NEW: Darwin Shares and Total Investment
+                    'darwin_shares': user_info.get('darwin_shares', 0) if user_info else 0,
+                    'total_invest_amount': user_info.get('total_invest_amount', 0) if user_info else 0,
                 }
             )
 

@@ -285,7 +285,10 @@ class CommandProcessor:
                     'total_payments': user_summary.get('total_payments', 0),
                     'referral_count': user_summary.get('referral_count', 0),
                     'upline_name': user_summary.get('upline_name', 'Unknown'),
-                    'legacy_status': user_summary.get('legacy_status', '❌ Not migrated')
+                    'legacy_status': user_summary.get('legacy_status', '❌ Not migrated'),
+                    # NEW: Darwin Shares and Total Investment
+                    'darwin_shares': user_summary.get('darwin_shares', 0),
+                    'total_invest_amount': user_summary.get('total_invest_amount', 0),
                 })
 
                 # Use same template as welcome message
