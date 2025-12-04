@@ -2,7 +2,7 @@
 User model from mainbot - READ ONLY.
 """
 from sqlalchemy import Column, Integer, String, Text, DateTime, ForeignKey, DECIMAL, JSON
-from sqlalchemy.orm import relationship, backref
+from sqlalchemy.orm import relationship
 from sqlalchemy.ext.hybrid import hybrid_property
 from datetime import datetime, timezone
 
@@ -19,7 +19,7 @@ class User(MainbotBase):
     lang = Column(String)
     firstname = Column(String)
     surname = Column(String, nullable=True)
-    birthday = Column(DateTime, nullable=True)
+    birthday = Column(String, nullable=True)
     address = Column(String, nullable=True)
     phoneNumber = Column(String, nullable=True)
     country = Column(String, nullable=True)
@@ -27,20 +27,33 @@ class User(MainbotBase):
     city = Column(String, nullable=True)
     telegramID = Column(Integer, unique=True, nullable=False)
     email = Column(String, nullable=True)
-    balanceActive = Column(DECIMAL(12, 2), default=0.00)  # FIXED: Float -> DECIMAL
-    balancePassive = Column(DECIMAL(12, 2), default=0.00)  # FIXED: Float -> DECIMAL
-    personalData = Column(JSON, nullable=True)  # NEW: JSON field for isFilled, kyc, etc
+    balanceActive = Column(DECIMAL(12, 2), default=0.00)
+    balancePassive = Column(DECIMAL(12, 2), default=0.00)
+    personalData = Column(JSON, nullable=True)
     lastActive = Column(DateTime, nullable=True)
     status = Column(String, default="active")
     notes = Column(Text, nullable=True)
-    settings = Column(String, nullable=True)
+    settings = Column(JSON, nullable=True)
 
-    # Relationships
-    referrals = relationship('User', backref=backref('referrer', remote_side=[telegramID]))
+    referrals = relationship('User',
+                           foreign_keys=[upline],
+                           back_populates='referrer',
+                           remote_side=[telegramID])
+    referrer = relationship('User',
+                          foreign_keys=[upline],
+                          back_populates='referrals',
+                          remote_side=[upline],
+                          uselist=False)
+
+    # Other models
     purchases = relationship('Purchase', back_populates='user')
     payments = relationship('Payment', back_populates='user')
     received_bonuses = relationship('Bonus', foreign_keys='Bonus.userID', back_populates='user')
     generated_bonuses = relationship('Bonus', foreign_keys='Bonus.downlineID', back_populates='downline')
+    active_balance_records = relationship('ActiveBalance', back_populates='user')
+    passive_balance_records = relationship('PassiveBalance', back_populates='user')
+    sent_transfers = relationship('Transfer', foreign_keys='Transfer.senderUserID', back_populates='sender')
+    received_transfers = relationship('Transfer', foreign_keys='Transfer.receiverUserID', back_populates='receiver')
 
     # Properties for operator display
     @property
@@ -66,7 +79,6 @@ class User(MainbotBase):
             if isinstance(kyc_data, dict):
                 status = kyc_data.get('status', 'not_started')
                 return "✅ Verified" if status == 'verified' else "❌ Not verified"
-            # Backward compatibility with old format
             return "✅ Verified" if kyc_data else "❌ Not verified"
         return "❌ Not verified"
 
@@ -77,7 +89,6 @@ class User(MainbotBase):
             return self.personalData.get('dataFilled', False)
         return False
 
-    # Backward compatibility properties
     @property
     def isFilled(self):
         """Backward compatibility: reads from personalData.dataFilled"""

@@ -19,10 +19,11 @@ class Purchase(MainbotBase):
     projectName = Column(String, nullable=False)
     optionID = Column(Integer, nullable=True)
     packQty = Column(Integer, nullable=False)
-    packPrice = Column(DECIMAL(12, 2), nullable=False)  # FIXED: Float -> DECIMAL
+    packPrice = Column(DECIMAL(12, 2), nullable=False)
 
-    # Relationships - только User
+    # Relationships
     user = relationship('User', back_populates='purchases')
+    bonuses = relationship('Bonus', back_populates='purchase')
 
     @property
     def days_ago(self):

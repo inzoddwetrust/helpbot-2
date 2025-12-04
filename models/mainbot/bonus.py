@@ -22,17 +22,17 @@ class Bonus(MainbotBase):
     projectID = Column(Integer, nullable=True)
     optionID = Column(Integer, nullable=True)
     packQty = Column(Integer, nullable=True)
-    packPrice = Column(DECIMAL(12, 2), nullable=True)  # FIXED: Float -> DECIMAL
+    packPrice = Column(DECIMAL(12, 2), nullable=True)
 
     uplineLevel = Column(Integer, nullable=True)
-    bonusRate = Column(DECIMAL(5, 2), nullable=False)  # FIXED: Float -> DECIMAL (percentage)
-    bonusAmount = Column(DECIMAL(12, 2), nullable=False)  # FIXED: Float -> DECIMAL
+    bonusRate = Column(DECIMAL(5, 2), nullable=False)
+    bonusAmount = Column(DECIMAL(12, 2), nullable=False)
 
     status = Column(String, default="pending")
     notes = Column(Text, nullable=True)
 
-    # NEW FIELDS from jetup-2 (optional but good to have)
-    commissionType = Column(String, nullable=True)  # differential/referral/pioneer/global_pool
+    # NEW FIELDS from jetup-2
+    commissionType = Column(String, nullable=True)
     fromRank = Column(String, nullable=True)
     sourceRank = Column(String, nullable=True)
     compressionApplied = Column(Integer, nullable=True)
@@ -40,7 +40,7 @@ class Bonus(MainbotBase):
     # Relationships
     user = relationship('User', foreign_keys=[userID], back_populates='received_bonuses')
     downline = relationship('User', foreign_keys=[downlineID], back_populates='generated_bonuses')
-    purchase = relationship('Purchase', backref='bonuses')
+    purchase = relationship('Purchase', back_populates='bonuses')
 
     @property
     def status_display(self):
@@ -67,7 +67,6 @@ class Bonus(MainbotBase):
     @property
     def bonus_type(self):
         """Returns human-readable bonus type"""
-        # Check new commissionType field first (jetup-2)
         if self.commissionType:
             type_map = {
                 'differential': 'Differential Bonus',
@@ -78,7 +77,6 @@ class Bonus(MainbotBase):
             }
             return type_map.get(self.commissionType, self.commissionType)
 
-        # Fallback to old logic (talentir)
         if self.downlineID:
             return f"Referral Level {self.uplineLevel or 'N/A'}"
         return "System Bonus"

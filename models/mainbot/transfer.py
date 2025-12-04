@@ -18,8 +18,8 @@ class Transfer(MainbotBase):
     senderFirstname = Column(String, nullable=False)
     senderSurname = Column(String, nullable=True)
     fromBalance = Column(String, nullable=False)
-    amount = Column(DECIMAL(12, 2), nullable=False)  # FIXED: Float -> DECIMAL
-    receiverUserID = Column(Integer, ForeignKey('users.userID'))  # FIXED: reciever -> receiver
+    amount = Column(DECIMAL(12, 2), nullable=False)
+    receiverUserID = Column(Integer, ForeignKey('users.userID'))
     receiverFirstname = Column(String, nullable=False)
     receiverSurname = Column(String, nullable=True)
     toBalance = Column(String, nullable=False)
@@ -27,8 +27,8 @@ class Transfer(MainbotBase):
     notes = Column(Text, nullable=True)
 
     # Relationships
-    sender = relationship('User', foreign_keys=[senderUserID], backref='sent_transfers')
-    receiver = relationship('User', foreign_keys=[receiverUserID], backref='received_transfers')  # FIXED
+    sender = relationship('User', foreign_keys=[senderUserID], back_populates='sent_transfers')
+    receiver = relationship('User', foreign_keys=[receiverUserID], back_populates='received_transfers')
 
     @property
     def formatted_amount(self):

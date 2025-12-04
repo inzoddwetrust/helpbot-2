@@ -3,6 +3,7 @@ Database connection and session management module.
 Support for multiple database connections.
 """
 import logging
+import threading
 from contextlib import contextmanager
 from enum import Enum
 
@@ -17,6 +18,9 @@ class DatabaseType(Enum):
     HELPBOT = "helpbot"
     MAINBOT = "mainbot"
 
+# Thread safety lock
+_lock = threading.Lock()
+
 # Database engines and session factories
 _ENGINES = {}
 _SESSION_FACTORIES = {}
@@ -24,6 +28,7 @@ _SESSION_FACTORIES = {}
 def get_db_session(db_type: DatabaseType = DatabaseType.HELPBOT):
     """
     Create and return SQLAlchemy session factory and engine.
+    Thread-safe implementation with lock.
 
     Args:
         db_type: Which database to connect to
@@ -36,57 +41,59 @@ def get_db_session(db_type: DatabaseType = DatabaseType.HELPBOT):
     """
     global _ENGINES, _SESSION_FACTORIES
 
-    if db_type not in _ENGINES:
-        try:
-            # Get appropriate database URL
-            if db_type == DatabaseType.HELPBOT:
-                db_url = Config.get(Config.DATABASE_URL)
-                config_key = "DATABASE_URL"
-            elif db_type == DatabaseType.MAINBOT:
-                db_url = Config.get(Config.MAINBOT_DATABASE_URL)
-                config_key = "MAINBOT_DATABASE_URL"
-            else:
-                raise ValueError(f"Unknown database type: {db_type}")
+    # Thread-safe check and creation
+    with _lock:
+        if db_type not in _ENGINES:
+            try:
+                # Get appropriate database URL
+                if db_type == DatabaseType.HELPBOT:
+                    db_url = Config.get(Config.DATABASE_URL)
+                    config_key = "DATABASE_URL"
+                elif db_type == DatabaseType.MAINBOT:
+                    db_url = Config.get(Config.MAINBOT_DATABASE_URL)
+                    config_key = "MAINBOT_DATABASE_URL"
+                else:
+                    raise ValueError(f"Unknown database type: {db_type}")
 
-            if not db_url:
-                raise ConfigurationError(f"{config_key} is not set or empty")
+                if not db_url:
+                    raise ConfigurationError(f"{config_key} is not set or empty")
 
-            # SQLite compatibility for aiosqlite
-            if db_url.startswith('sqlite+aiosqlite'):
-                db_url = db_url.replace('sqlite+aiosqlite', 'sqlite')
+                # SQLite compatibility for aiosqlite
+                if db_url.startswith('sqlite+aiosqlite'):
+                    db_url = db_url.replace('sqlite+aiosqlite', 'sqlite')
 
-            # Configure engine based on database type
-            if db_url.startswith('sqlite'):
-                # SQLite configuration (for HELPBOT)
-                connect_args = {"check_same_thread": False}
-                _ENGINES[db_type] = create_engine(
-                    db_url,
-                    connect_args=connect_args
-                )
-                logger.info(f"SQLite engine initialized for {db_type.value}")
+                # Configure engine based on database type
+                if db_url.startswith('sqlite'):
+                    # SQLite configuration (for HELPBOT)
+                    connect_args = {"check_same_thread": False}
+                    _ENGINES[db_type] = create_engine(
+                        db_url,
+                        connect_args=connect_args
+                    )
+                    logger.info(f"SQLite engine initialized for {db_type.value}")
 
-            elif db_url.startswith('postgresql'):
-                # PostgreSQL configuration (for MAINBOT)
-                _ENGINES[db_type] = create_engine(
-                    db_url,
-                    pool_size=5,           # Base connections in pool
-                    max_overflow=10,       # Max additional connections
-                    pool_pre_ping=True,    # Check connection health before use
-                    pool_recycle=3600      # Reconnect every hour
-                )
-                logger.info(f"PostgreSQL engine initialized for {db_type.value}")
+                elif db_url.startswith('postgresql'):
+                    # PostgreSQL configuration (for MAINBOT)
+                    _ENGINES[db_type] = create_engine(
+                        db_url,
+                        pool_size=5,           # Base connections in pool
+                        max_overflow=10,       # Max additional connections
+                        pool_pre_ping=True,    # Check connection health before use
+                        pool_recycle=3600      # Reconnect every hour
+                    )
+                    logger.info(f"PostgreSQL engine initialized for {db_type.value}")
 
-            else:
-                # Fallback for other database types
-                _ENGINES[db_type] = create_engine(db_url)
-                logger.warning(f"Generic engine initialized for {db_type.value} - no specific optimizations")
+                else:
+                    # Fallback for other database types
+                    _ENGINES[db_type] = create_engine(db_url)
+                    logger.warning(f"Generic engine initialized for {db_type.value} - no specific optimizations")
 
-            _SESSION_FACTORIES[db_type] = sessionmaker(bind=_ENGINES[db_type])
-            logger.info(f"Database session factory created for {db_type.value}")
+                _SESSION_FACTORIES[db_type] = sessionmaker(bind=_ENGINES[db_type])
+                logger.info(f"Database session factory created for {db_type.value}")
 
-        except ConfigurationError as e:
-            logger.critical(f"Database configuration error for {db_type.value}: {e}")
-            raise
+            except ConfigurationError as e:
+                logger.critical(f"Database configuration error for {db_type.value}: {e}")
+                raise
 
     return _SESSION_FACTORIES[db_type], _ENGINES[db_type]
 
