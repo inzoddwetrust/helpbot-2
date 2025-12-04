@@ -6,12 +6,12 @@ import logging
 import re
 import json
 from typing import Any, Callable, Awaitable
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 
 from aiogram import Router, Bot, F, Dispatcher
 from aiogram.types import Message, TelegramObject, CallbackQuery
 from aiogram import BaseMiddleware
-from sqlalchemy import desc, and_, or_, func
+from sqlalchemy import func
 
 from core.templates import MessageTemplates
 from core.message_manager import MessageManager
@@ -692,7 +692,7 @@ async def handle_stats(message: Message, user, user_type, mainbot_user, session,
         ).count()
 
         # Statistics for last 7 days
-        week_ago = datetime.utcnow() - timedelta(days=7)
+        week_ago = datetime.now(timezone.utc) - timedelta(days=7)
         recent_tickets = session.query(Ticket).filter(
             Ticket.createdAt >= week_ago
         ).count()

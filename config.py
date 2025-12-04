@@ -6,7 +6,7 @@ import os
 import asyncio
 import logging
 from typing import Dict, Any, List, Callable, Set
-from datetime import datetime
+from datetime import datetime, timezone
 from functools import wraps
 from dotenv import load_dotenv
 
@@ -158,7 +158,7 @@ class Config:
                 old_value = cls._dynamic_values[key]
             cls._dynamic_values[key] = value
 
-        cls._last_updates[key] = datetime.utcnow()
+        cls._last_updates[key] = datetime.now(timezone.utc)
         cls._sources[key] = source
 
         # Notify listeners if value changed
@@ -282,7 +282,7 @@ class Config:
         # Initialize system variables
         system_vars = {
             cls.SYSTEM_VERSION: "1.0.0",
-            cls.SYSTEM_START_TIME: datetime.utcnow(),
+            cls.SYSTEM_START_TIME: datetime.now(timezone.utc),
             cls.SYSTEM_READY: False,
             cls.SYSTEM_STATUS: "initializing",
             cls.TOTAL_USERS: 0,
@@ -354,13 +354,13 @@ class Config:
 
         while True:
             try:
-                now = datetime.utcnow()
+                now = datetime.now(timezone.utc)
 
                 for key in list(cls._update_functions.keys()):
                     if key not in cls._update_intervals:
                         continue
 
-                    last_update = cls._last_updates.get(key, datetime.min)
+                    last_update = cls._last_updates.get(key, datetime.min.replace(tzinfo=timezone.utc))
                     interval = cls._update_intervals[key]
 
                     if (now - last_update).total_seconds() > interval:

@@ -1,9 +1,9 @@
 """
 Bonus model from mainbot - READ ONLY.
 """
-from sqlalchemy import Column, Integer, Float, DateTime, ForeignKey, String, Text
+from sqlalchemy import Column, Integer, DateTime, ForeignKey, String, Text, DECIMAL
 from sqlalchemy.orm import relationship
-import datetime
+from datetime import datetime, timezone
 
 from models.mainbot.base import MainbotBase
 
@@ -13,7 +13,7 @@ class Bonus(MainbotBase):
     __tablename__ = 'bonuses'
 
     bonusID = Column(Integer, primary_key=True, autoincrement=True)
-    createdAt = Column(DateTime, default=datetime.datetime.utcnow)
+    createdAt = Column(DateTime, default=lambda: datetime.now(timezone.utc))
 
     userID = Column(Integer, ForeignKey('users.userID'), nullable=False)
     downlineID = Column(Integer, ForeignKey('users.userID'), nullable=True)
@@ -22,14 +22,20 @@ class Bonus(MainbotBase):
     projectID = Column(Integer, nullable=True)
     optionID = Column(Integer, nullable=True)
     packQty = Column(Integer, nullable=True)
-    packPrice = Column(Float, nullable=True)
+    packPrice = Column(DECIMAL(12, 2), nullable=True)  # FIXED: Float -> DECIMAL
 
     uplineLevel = Column(Integer, nullable=True)
-    bonusRate = Column(Float, nullable=False)
-    bonusAmount = Column(Float, nullable=False)
+    bonusRate = Column(DECIMAL(5, 2), nullable=False)  # FIXED: Float -> DECIMAL (percentage)
+    bonusAmount = Column(DECIMAL(12, 2), nullable=False)  # FIXED: Float -> DECIMAL
 
     status = Column(String, default="pending")
     notes = Column(Text, nullable=True)
+
+    # NEW FIELDS from jetup-2 (optional but good to have)
+    commissionType = Column(String, nullable=True)  # differential/referral/pioneer/global_pool
+    fromRank = Column(String, nullable=True)
+    sourceRank = Column(String, nullable=True)
+    compressionApplied = Column(Integer, nullable=True)
 
     # Relationships
     user = relationship('User', foreign_keys=[userID], back_populates='received_bonuses')
@@ -60,7 +66,19 @@ class Bonus(MainbotBase):
 
     @property
     def bonus_type(self):
-        """Determine bonus type"""
+        """Returns human-readable bonus type"""
+        # Check new commissionType field first (jetup-2)
+        if self.commissionType:
+            type_map = {
+                'differential': 'Differential Bonus',
+                'referral': f'Referral Level {self.uplineLevel}',
+                'pioneer': 'Pioneer Bonus',
+                'global_pool': 'Global Pool',
+                'investment_package': 'Investment Package Bonus'
+            }
+            return type_map.get(self.commissionType, self.commissionType)
+
+        # Fallback to old logic (talentir)
         if self.downlineID:
             return f"Referral Level {self.uplineLevel or 'N/A'}"
         return "System Bonus"

@@ -1,9 +1,9 @@
 """
 Transfer model from mainbot - READ ONLY.
 """
-from sqlalchemy import Column, Integer, String, Float, DateTime, ForeignKey, Text
+from sqlalchemy import Column, Integer, String, DateTime, ForeignKey, Text, DECIMAL
 from sqlalchemy.orm import relationship
-import datetime
+from datetime import datetime, timezone
 
 from models.mainbot.base import MainbotBase
 
@@ -13,13 +13,13 @@ class Transfer(MainbotBase):
     __tablename__ = 'transfers'
 
     transferID = Column(Integer, primary_key=True, autoincrement=True)
-    createdAt = Column(DateTime, default=datetime.datetime.utcnow)
+    createdAt = Column(DateTime, default=lambda: datetime.now(timezone.utc))
     senderUserID = Column(Integer, ForeignKey('users.userID'))
     senderFirstname = Column(String, nullable=False)
     senderSurname = Column(String, nullable=True)
     fromBalance = Column(String, nullable=False)
-    amount = Column(Float, nullable=False)
-    recieverUserID = Column(Integer, ForeignKey('users.userID'))
+    amount = Column(DECIMAL(12, 2), nullable=False)  # FIXED: Float -> DECIMAL
+    receiverUserID = Column(Integer, ForeignKey('users.userID'))  # FIXED: reciever -> receiver
     receiverFirstname = Column(String, nullable=False)
     receiverSurname = Column(String, nullable=True)
     toBalance = Column(String, nullable=False)
@@ -28,7 +28,7 @@ class Transfer(MainbotBase):
 
     # Relationships
     sender = relationship('User', foreign_keys=[senderUserID], backref='sent_transfers')
-    receiver = relationship('User', foreign_keys=[recieverUserID], backref='received_transfers')
+    receiver = relationship('User', foreign_keys=[receiverUserID], backref='received_transfers')  # FIXED
 
     @property
     def formatted_amount(self):
@@ -60,5 +60,5 @@ class Transfer(MainbotBase):
     def days_ago(self):
         """Days since transfer"""
         if self.createdAt:
-            return (datetime.datetime.utcnow() - self.createdAt).days
+            return (datetime.now(timezone.utc) - self.createdAt).days
         return 0

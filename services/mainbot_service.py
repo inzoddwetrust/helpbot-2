@@ -4,7 +4,7 @@ Provides convenient methods for retrieving user data for support operators.
 """
 import logging
 from typing import Dict, List, Any, Optional
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from sqlalchemy import desc, and_, or_, func
 
 from core.db import get_mainbot_session
@@ -357,7 +357,7 @@ class MainbotService:
                 transfers = session.query(Transfer).filter(
                     or_(
                         Transfer.senderUserID == user_id,
-                        Transfer.recieverUserID == user_id
+                        Transfer.receiverUserID == user_id
                     )
                 ).order_by(
                     desc(Transfer.createdAt)
@@ -375,7 +375,7 @@ class MainbotService:
                         'formatted_amount': t.formatted_amount,
                         'balance_flow': t.balance_flow,
                         'counterparty_name': t.receiver_name if is_sender else t.sender_name,
-                        'counterparty_id': t.recieverUserID if is_sender else t.senderUserID,
+                        'counterparty_id': t.receiverUserID if is_sender else t.senderUserID,
                         'status': t.status,
                         'days_ago': t.days_ago
                     })
@@ -400,7 +400,7 @@ class MainbotService:
         """
         try:
             with get_mainbot_session() as session:
-                since_date = datetime.utcnow() - timedelta(days=days)
+                since_date = datetime.now(timezone.utc) - timedelta(days=days)
 
                 # Count recent activities
                 activity = {
@@ -434,7 +434,7 @@ class MainbotService:
 
                     'transfers_received': session.query(Transfer).filter(
                         and_(
-                            Transfer.recieverUserID == user_id,
+                            Transfer.receiverUserID == user_id,
                             Transfer.createdAt >= since_date
                         )
                     ).count(),

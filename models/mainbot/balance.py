@@ -1,23 +1,23 @@
 """
 Balance models from mainbot - READ ONLY.
 """
-from sqlalchemy import Column, Integer, String, Float, DateTime, ForeignKey, Text
+from sqlalchemy import Column, Integer, String, DateTime, ForeignKey, Text, DECIMAL
 from sqlalchemy.orm import relationship
-import datetime
+from datetime import datetime, timezone
 
 from models.mainbot.base import MainbotBase
 
 
 class ActiveBalance(MainbotBase):
     """Active balance records from mainbot - READ ONLY."""
-    __tablename__ = 'active_balance'
+    __tablename__ = 'active_balances'  # FIXED: plural form
 
     paymentID = Column(Integer, primary_key=True, autoincrement=True)
-    createdAt = Column(DateTime, default=datetime.datetime.utcnow)
+    createdAt = Column(DateTime, default=lambda: datetime.now(timezone.utc))
     userID = Column(Integer, ForeignKey('users.userID'))
     firstname = Column(String, nullable=False)
     surname = Column(String, nullable=True)
-    amount = Column(Float, nullable=False)
+    amount = Column(DECIMAL(12, 2), nullable=False)  # FIXED: Float -> DECIMAL
     status = Column(String, nullable=False)
     reason = Column(String, nullable=False)
     link = Column(String, nullable=True)
@@ -36,20 +36,20 @@ class ActiveBalance(MainbotBase):
     def days_ago(self):
         """Days since transaction"""
         if self.createdAt:
-            return (datetime.datetime.utcnow() - self.createdAt).days
+            return (datetime.now(timezone.utc) - self.createdAt).days
         return 0
 
 
 class PassiveBalance(MainbotBase):
     """Passive balance records from mainbot - READ ONLY."""
-    __tablename__ = 'passive_balance'
+    __tablename__ = 'passive_balances'  # FIXED: plural form
 
     paymentID = Column(Integer, primary_key=True, autoincrement=True)
-    createdAt = Column(DateTime, default=datetime.datetime.utcnow)
+    createdAt = Column(DateTime, default=lambda: datetime.now(timezone.utc))
     userID = Column(Integer, ForeignKey('users.userID'))
     firstname = Column(String, nullable=False)
     surname = Column(String, nullable=True)
-    amount = Column(Float, nullable=False)
+    amount = Column(DECIMAL(12, 2), nullable=False)  # FIXED: Float -> DECIMAL
     status = Column(String, nullable=False)
     reason = Column(String, nullable=False)
     link = Column(String, nullable=True)
@@ -68,5 +68,5 @@ class PassiveBalance(MainbotBase):
     def days_ago(self):
         """Days since transaction"""
         if self.createdAt:
-            return (datetime.datetime.utcnow() - self.createdAt).days
+            return (datetime.now(timezone.utc) - self.createdAt).days
         return 0

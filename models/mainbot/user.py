@@ -1,9 +1,10 @@
 """
 User model from mainbot - READ ONLY.
 """
-from sqlalchemy import Column, Integer, String, Text, Float, DateTime, ForeignKey, Boolean
+from sqlalchemy import Column, Integer, String, Text, DateTime, ForeignKey, DECIMAL, JSON
 from sqlalchemy.orm import relationship, backref
-import datetime
+from sqlalchemy.ext.hybrid import hybrid_property
+from datetime import datetime, timezone
 
 from models.mainbot.base import MainbotBase
 
@@ -13,7 +14,7 @@ class User(MainbotBase):
     __tablename__ = 'users'
 
     userID = Column(Integer, primary_key=True)
-    createdAt = Column(DateTime, default=datetime.datetime.utcnow)
+    createdAt = Column(DateTime, default=lambda: datetime.now(timezone.utc))
     upline = Column(Integer, ForeignKey('users.telegramID'), nullable=True)
     lang = Column(String)
     firstname = Column(String)
@@ -26,10 +27,9 @@ class User(MainbotBase):
     city = Column(String, nullable=True)
     telegramID = Column(Integer, unique=True, nullable=False)
     email = Column(String, nullable=True)
-    balanceActive = Column(Float, default=0.00)
-    balancePassive = Column(Float, default=0.00)
-    isFilled = Column(Boolean, default=False)
-    kyc = Column(Boolean, default=False)
+    balanceActive = Column(DECIMAL(12, 2), default=0.00)  # FIXED: Float -> DECIMAL
+    balancePassive = Column(DECIMAL(12, 2), default=0.00)  # FIXED: Float -> DECIMAL
+    personalData = Column(JSON, nullable=True)  # NEW: JSON field for isFilled, kyc, etc
     lastActive = Column(DateTime, nullable=True)
     status = Column(String, default="active")
     notes = Column(Text, nullable=True)
@@ -58,10 +58,39 @@ class User(MainbotBase):
         """Total balance (active + passive)"""
         return (self.balanceActive or 0) + (self.balancePassive or 0)
 
-    @property
+    @hybrid_property
     def kyc_status(self):
-        """KYC status display"""
-        return "✅ Verified" if self.kyc else "❌ Not verified"
+        """Returns KYC status from personalData JSON"""
+        if self.personalData:
+            kyc_data = self.personalData.get('kyc', {})
+            if isinstance(kyc_data, dict):
+                status = kyc_data.get('status', 'not_started')
+                return "✅ Verified" if status == 'verified' else "❌ Not verified"
+            # Backward compatibility with old format
+            return "✅ Verified" if kyc_data else "❌ Not verified"
+        return "❌ Not verified"
+
+    @hybrid_property
+    def is_profile_filled(self):
+        """Check if profile data is filled"""
+        if self.personalData:
+            return self.personalData.get('dataFilled', False)
+        return False
+
+    # Backward compatibility properties
+    @property
+    def isFilled(self):
+        """Backward compatibility: reads from personalData.dataFilled"""
+        return self.is_profile_filled
+
+    @property
+    def kyc(self):
+        """Backward compatibility: reads from personalData.kyc.status"""
+        if self.personalData:
+            kyc_data = self.personalData.get('kyc', {})
+            if isinstance(kyc_data, dict):
+                return kyc_data.get('status') == 'verified'
+        return False
 
     @property
     def profile_completeness(self):
@@ -69,7 +98,7 @@ class User(MainbotBase):
         fields = [
             self.firstname, self.surname, self.email,
             self.phoneNumber, self.country, self.city,
-            self.birthday, self.address
+            self.birthday, self.address, self.passport
         ]
         filled = sum(1 for f in fields if f)
         return int((filled / len(fields)) * 100)
@@ -78,7 +107,7 @@ class User(MainbotBase):
     def days_since_registration(self):
         """Days since registration"""
         if self.createdAt:
-            return (datetime.datetime.utcnow() - self.createdAt).days
+            return (datetime.now(timezone.utc) - self.createdAt).days
         return 0
 
     @property

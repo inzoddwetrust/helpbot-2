@@ -51,21 +51,38 @@ def get_db_session(db_type: DatabaseType = DatabaseType.HELPBOT):
             if not db_url:
                 raise ConfigurationError(f"{config_key} is not set or empty")
 
-            # SQLite compatibility
+            # SQLite compatibility for aiosqlite
             if db_url.startswith('sqlite+aiosqlite'):
                 db_url = db_url.replace('sqlite+aiosqlite', 'sqlite')
 
-            connect_args = {}
+            # Configure engine based on database type
             if db_url.startswith('sqlite'):
-                connect_args["check_same_thread"] = False
+                # SQLite configuration (for HELPBOT)
+                connect_args = {"check_same_thread": False}
+                _ENGINES[db_type] = create_engine(
+                    db_url,
+                    connect_args=connect_args
+                )
+                logger.info(f"SQLite engine initialized for {db_type.value}")
 
-            _ENGINES[db_type] = create_engine(
-                db_url,
-                connect_args=connect_args
-            )
+            elif db_url.startswith('postgresql'):
+                # PostgreSQL configuration (for MAINBOT)
+                _ENGINES[db_type] = create_engine(
+                    db_url,
+                    pool_size=5,           # Base connections in pool
+                    max_overflow=10,       # Max additional connections
+                    pool_pre_ping=True,    # Check connection health before use
+                    pool_recycle=3600      # Reconnect every hour
+                )
+                logger.info(f"PostgreSQL engine initialized for {db_type.value}")
+
+            else:
+                # Fallback for other database types
+                _ENGINES[db_type] = create_engine(db_url)
+                logger.warning(f"Generic engine initialized for {db_type.value} - no specific optimizations")
 
             _SESSION_FACTORIES[db_type] = sessionmaker(bind=_ENGINES[db_type])
-            logger.info(f"Database engine initialized for {db_type.value} with {db_url}")
+            logger.info(f"Database session factory created for {db_type.value}")
 
         except ConfigurationError as e:
             logger.critical(f"Database configuration error for {db_type.value}: {e}")
@@ -144,17 +161,17 @@ def setup_database():
         ConfigurationError: If database configuration is invalid
     """
     try:
-        # Setup helpbot database
+        # Setup helpbot database (SQLite)
         session_factory, engine = get_db_session(DatabaseType.HELPBOT)
         init_tables(engine)
 
-        # Test mainbot connection (but don't create tables there!)
+        # Test mainbot connection (PostgreSQL - read-only, don't create tables!)
         try:
-            mainbot_factory, mainbot_engine = get_db_session(DatabaseType.MAINBOT)
-            logger.info("Successfully connected to mainbot database")
+            get_db_session(DatabaseType.MAINBOT)
+            logger.info("Successfully connected to mainbot PostgreSQL database")
         except Exception as e:
             logger.warning(f"Could not connect to mainbot database: {e}")
-            logger.warning("Support bot will work without mainbot integration")
+            logger.warning("Helpbot will work without mainbot integration")
 
         logger.info("Databases initialized successfully")
         return session_factory, engine

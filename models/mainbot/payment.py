@@ -1,9 +1,9 @@
 """
 Payment model from mainbot - READ ONLY.
 """
-from sqlalchemy import Column, Integer, String, Float, DateTime, ForeignKey
+from sqlalchemy import Column, Integer, String, DateTime, ForeignKey, DECIMAL
 from sqlalchemy.orm import relationship
-import datetime
+from datetime import datetime, timezone
 
 from models.mainbot.base import MainbotBase
 
@@ -13,17 +13,17 @@ class Payment(MainbotBase):
     __tablename__ = 'payments'
 
     paymentID = Column(Integer, primary_key=True, autoincrement=True)
-    createdAt = Column(DateTime, default=datetime.datetime.utcnow)
+    createdAt = Column(DateTime, default=lambda: datetime.now(timezone.utc))
     userID = Column(Integer, ForeignKey('users.userID'))
     firstname = Column(String, nullable=False)
     surname = Column(String, nullable=True)
     direction = Column(String, nullable=False, default='incoming')
-    amount = Column(Float, nullable=False)
+    amount = Column(DECIMAL(12, 2), nullable=False)  # FIXED: Float -> DECIMAL
     method = Column(String, nullable=False)
     fromWallet = Column(String, nullable=True)
     toWallet = Column(String, nullable=True)
     txid = Column(String, unique=True, nullable=True)
-    sumCurrency = Column(Float, nullable=False)
+    sumCurrency = Column(DECIMAL(12, 8), nullable=True)  # FIXED: Float -> DECIMAL, nullable=True
     status = Column(String, nullable=False)
     confirmedBy = Column(String, nullable=True)
     confirmationTime = Column(DateTime, nullable=True)
@@ -57,5 +57,5 @@ class Payment(MainbotBase):
     def days_ago(self):
         """Days since payment"""
         if self.createdAt:
-            return (datetime.datetime.utcnow() - self.createdAt).days
+            return (datetime.now(timezone.utc) - self.createdAt).days
         return 0

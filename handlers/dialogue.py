@@ -3,7 +3,7 @@ Dialogue handlers for helpbot - ticket creation and operator assignment.
 """
 import logging
 import json
-from datetime import datetime
+from datetime import datetime, timezone
 from typing import Dict
 
 from aiogram import Router, F
@@ -155,15 +155,15 @@ async def cmd_start(message: Message, user, mainbot_user, user_type, session, me
 
             if payload.startswith("error_"):
                 error_code = payload
-                context = {"source": "deeplink", "timestamp": datetime.utcnow().isoformat()}
+                context = {"source": "deeplink", "timestamp": datetime.now(timezone.utc).isoformat()}
             else:
-                context = {"payload": payload, "timestamp": datetime.utcnow().isoformat()}
+                context = {"payload": payload, "timestamp": datetime.now(timezone.utc).isoformat()}
 
         # NEW: Save to FSM and show confirmation
         fsm_context = {
             "error_code": error_code,
             "context": context,
-            "timestamp": datetime.utcnow().isoformat()
+            "timestamp": datetime.now(timezone.utc).isoformat()
         }
         user.set_fsm_state("ticket_confirmation", fsm_context)
         session.commit()
@@ -384,7 +384,7 @@ async def handle_take_ticket(callback: CallbackQuery, user, user_type, mainbot_u
         # Update ticket status
         ticket.status = TicketStatus.IN_PROGRESS
         ticket.assignedOperatorID = operator.operatorID
-        ticket.assignedAt = datetime.utcnow()
+        ticket.assignedAt = datetime.now(timezone.utc)
 
         # Update operator's current tickets count
         operator.currentTicketsCount = (operator.currentTicketsCount or 0) + 1
@@ -403,7 +403,7 @@ async def handle_take_ticket(callback: CallbackQuery, user, user_type, mainbot_u
             context={
                 'operator_id': operator_id,
                 'operator_name': operator.displayName or user.displayName,
-                'taken_at': datetime.utcnow().isoformat()
+                'taken_at': datetime.now(timezone.utc).isoformat()
             }
         )
 
