@@ -1,7 +1,7 @@
 """
 User model from mainbot - READ ONLY.
 """
-from sqlalchemy import Column, Integer, String, Text, DateTime, ForeignKey, DECIMAL, JSON
+from sqlalchemy import Column, Integer, String, Text, DateTime, ForeignKey, DECIMAL, JSON, BigInteger
 from sqlalchemy.orm import relationship
 from sqlalchemy.ext.hybrid import hybrid_property
 from datetime import datetime, timezone
@@ -15,7 +15,7 @@ class User(MainbotBase):
 
     userID = Column(Integer, primary_key=True)
     createdAt = Column(DateTime, default=lambda: datetime.now(timezone.utc))
-    upline = Column(Integer, ForeignKey('users.telegramID'), nullable=True)
+    upline = Column(BigInteger, ForeignKey('users.telegramID'), nullable=True)
     lang = Column(String)
     firstname = Column(String)
     surname = Column(String, nullable=True)
@@ -25,7 +25,7 @@ class User(MainbotBase):
     country = Column(String, nullable=True)
     passport = Column(String, nullable=True)
     city = Column(String, nullable=True)
-    telegramID = Column(Integer, unique=True, nullable=False)
+    telegramID = Column(BigInteger, unique=True, nullable=False)
     email = Column(String, nullable=True)
     balanceActive = Column(DECIMAL(12, 2), default=0.00)
     balancePassive = Column(DECIMAL(12, 2), default=0.00)
